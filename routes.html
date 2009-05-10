@@ -1,0 +1,75 @@
+<html>
+  <head>
+    <script src="prototype.js"></script>
+    <script src="lib.js"></script>
+    <script src="ometa-base.js"></script>
+    <script src="parser.js"></script>
+    <script src="bs-js-compiler.js"></script>
+    <script src="bs-ometa-compiler.js"></script>
+    <script src="bs-ometa-optimizer.js"></script>
+    <script src="bs-ometa-js-compiler.js"></script>
+    <script src="ometa-script-tag.js"></script>
+
+    <script type="text/x-ometa-js">
+      
+      ometa Calc {
+        digit    = ^digit:d                 -> d.digitValue(),
+        number   = number:n digit:d         -> (n * 10 + d)
+                 | digit,
+        addExpr  = addExpr:x '+' mulExpr:y  -> (x + y)
+                 | addExpr:x '-' mulExpr:y  -> (x - y)
+                 | mulExpr,
+        mulExpr  = mulExpr:x '*' primExpr:y -> (x * y)
+                 | mulExpr:x '/' primExpr:y -> (x / y)
+                 | primExpr,
+        primExpr = '(' expr:x ')'           -> x
+                 | number,
+        expr     = addExpr
+      }
+      
+      var routes = $A();
+      
+      var Url = Class.create({
+        initialize: function(parts) {
+          this.parts = $A(parts);
+        },
+        to_s: function() {
+          return '/' + this.parts.join('/');
+        }
+      });
+      
+      var Route = Class.create({
+        initialize: function(httpMethod, url, controller, meth) {
+          this.httpMethod = httpMethod;
+          this.url = url;
+          this.controller = controller;
+          this.meth = meth;
+        },
+        controllerName: function() {
+          return this.controller.underscore();
+        },
+        to_s: function() {
+          //return this.httpMethod + ' ' + this.url.to_s() + ' ' + this.controller + '.' + this.meth;
+          return 'map.connect(\'' + this.url.to_s() + '\''+ ' :controller => \'' + this.controllerName() + '\', :action => \'' + this.meth + '\', :conditions => {:method => :' + this.httpMethod.toLowerCase() + '})';
+        }
+      })
+      
+      ometa Routes {
+        string = firstAndRest(`lower, `letterOrDigit):name -> name.join(''),
+        urlPart = '/' string,
+        url = urlPart+:urlParts -> new Url(urlParts),
+        controller = firstAndRest(`upper, `letterOrDigit):name -> name.join(''),
+        httpMethod = firstAndRest(`upper, `upper):name -> name.join(''),
+        dot = '.',
+        method = string,
+        route = httpMethod:hm space url:u space controller:c dot method:m -> routes.push(new Route(hm, u, c, m))
+      }
+
+      Routes.matchAll('GET /sessions/new SessionsController.new', 'route')
+      alert(routes.first().to_s())
+    </script>
+
+  <body>
+    hello world
+  </body>
+</html>
