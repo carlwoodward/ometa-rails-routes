@@ -10,23 +10,13 @@
     <script src="bs-ometa-js-compiler.js"></script>
     <script src="ometa-script-tag.js"></script>
 
+  <body style="font-size: 13px; font-family: monaco;">
+    <p>Example: GET /sessions/new SessionsController.new</p>
+    <textarea name="input" id="input" style="width: 500px; height: 250px; font-size: 13px; font-family: monaco;"></textarea>
+    <a href="javascript:void(0)" id="click_to_parse" style="display: block;">Parse</a>
+    <div id="output"></div>
+    
     <script type="text/x-ometa-js">
-      
-      ometa Calc {
-        digit    = ^digit:d                 -> d.digitValue(),
-        number   = number:n digit:d         -> (n * 10 + d)
-                 | digit,
-        addExpr  = addExpr:x '+' mulExpr:y  -> (x + y)
-                 | addExpr:x '-' mulExpr:y  -> (x - y)
-                 | mulExpr,
-        mulExpr  = mulExpr:x '*' primExpr:y -> (x * y)
-                 | mulExpr:x '/' primExpr:y -> (x / y)
-                 | primExpr,
-        primExpr = '(' expr:x ')'           -> x
-                 | number,
-        expr     = addExpr
-      }
-      
       var routes = $A();
       
       var Url = Class.create({
@@ -46,30 +36,35 @@
           this.meth = meth;
         },
         controllerName: function() {
-          return this.controller.underscore();
+          return this.controller.gsub('Controller', '').underscore();
         },
         to_s: function() {
-          //return this.httpMethod + ' ' + this.url.to_s() + ' ' + this.controller + '.' + this.meth;
-          return 'map.connect(\'' + this.url.to_s() + '\''+ ' :controller => \'' + this.controllerName() + '\', :action => \'' + this.meth + '\', :conditions => {:method => :' + this.httpMethod.toLowerCase() + '})';
+          return 'map.connect(\'' + this.url.to_s() + '\''+ ', :controller => \'' + this.controllerName() + '\', :action => \'' + this.meth + '\', :conditions => {:method => :' + this.httpMethod.toLowerCase() + '})';
         }
       })
       
       ometa Routes {
         string = firstAndRest(`lower, `letterOrDigit):name -> name.join(''),
-        urlPart = '/' string,
+        sym = ':' string:str -> $A([':', str]).join(''),
+        part = string | sym,
+        urlPart = '/' part,
         url = urlPart+:urlParts -> new Url(urlParts),
         controller = firstAndRest(`upper, `letterOrDigit):name -> name.join(''),
         httpMethod = firstAndRest(`upper, `upper):name -> name.join(''),
         dot = '.',
         method = string,
-        route = httpMethod:hm space url:u space controller:c dot method:m -> routes.push(new Route(hm, u, c, m))
+        exp_end = '\n' | ';',
+        route = httpMethod:hm space url:u space controller:c dot method:m exp_end* -> routes.push(new Route(hm, u, c, m)),
+        routes = route*
       }
-
-      Routes.matchAll('GET /sessions/new SessionsController.new', 'route')
-      alert(routes.first().to_s())
+      
+      $('click_to_parse').observe('click', function() {
+        Routes.matchAll($F('input'), 'routes');
+        output = routes.collect(function(r) {
+          return r.to_s();
+        }).join('<br/>');
+        $('output').innerHTML = output;
+      })
     </script>
-
-  <body>
-    hello world
   </body>
 </html>
